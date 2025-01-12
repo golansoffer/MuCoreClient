@@ -10,7 +10,8 @@
 
 CBitmapCache::CBitmapCache()
 {
-    memset(m_QuickCache, 0, sizeof(QUICK_CACHE) * NUMBER_OF_QUICK_CACHE);
+    m_ppBitmapCache = nullptr;
+    m_pNullBitmap = nullptr;
 }
 CBitmapCache::~CBitmapCache() { Release(); }
 
@@ -18,73 +19,8 @@ bool CBitmapCache::Create()
 {
     Release();
 
-    // Initialize all cache ranges
-    m_QuickCache[QUICK_CACHE_MAIN].dwBitmapIndexMin = 0;
-    m_QuickCache[QUICK_CACHE_MAIN].dwBitmapIndexMax = BITMAP_PLAYER_TEXTURE_BEGIN - 1;
-    m_QuickCache[QUICK_CACHE_MAIN].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_MAIN].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_MAIN].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_PLAYER].dwBitmapIndexMin = BITMAP_PLAYER_TEXTURE_BEGIN;
-    m_QuickCache[QUICK_CACHE_PLAYER].dwBitmapIndexMax = BITMAP_PLAYER_TEXTURE_END;
-    m_QuickCache[QUICK_CACHE_PLAYER].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_PLAYER].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_PLAYER].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_INTERFACE].dwBitmapIndexMin = BITMAP_INTERFACE_TEXTURE_BEGIN;
-    m_QuickCache[QUICK_CACHE_INTERFACE].dwBitmapIndexMax = BITMAP_INTERFACE_TEXTURE_END;
-    m_QuickCache[QUICK_CACHE_INTERFACE].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_INTERFACE].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_INTERFACE].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_EFFECT].dwBitmapIndexMin = BITMAP_EFFECT_TEXTURE_BEGIN;
-    m_QuickCache[QUICK_CACHE_EFFECT].dwBitmapIndexMax = BITMAP_EFFECT_TEXTURE_END;
-    m_QuickCache[QUICK_CACHE_EFFECT].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_EFFECT].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_EFFECT].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    // Initialize existing ranges with increased size
-    m_QuickCache[QUICK_CACHE_MAPTILE].dwBitmapIndexMin = BITMAP_MAPTILE_BEGIN;
-    m_QuickCache[QUICK_CACHE_MAPTILE].dwBitmapIndexMax = BITMAP_MAPTILE_END;
-    m_QuickCache[QUICK_CACHE_MAPTILE].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_MAPTILE].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_MAPTILE].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_MAPGRASS].dwBitmapIndexMin = BITMAP_MAPGRASS_BEGIN;
-    m_QuickCache[QUICK_CACHE_MAPGRASS].dwBitmapIndexMax = BITMAP_MAPGRASS_END;
-    m_QuickCache[QUICK_CACHE_MAPGRASS].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_MAPGRASS].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_MAPGRASS].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_WATER].dwBitmapIndexMin = BITMAP_WATER_BEGIN;
-    m_QuickCache[QUICK_CACHE_WATER].dwBitmapIndexMax = BITMAP_WATER_END;
-    m_QuickCache[QUICK_CACHE_WATER].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_WATER].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_WATER].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_CURSOR].dwBitmapIndexMin = BITMAP_CURSOR_BEGIN;
-    m_QuickCache[QUICK_CACHE_CURSOR].dwBitmapIndexMax = BITMAP_CURSOR_END;
-    m_QuickCache[QUICK_CACHE_CURSOR].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_CURSOR].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_CURSOR].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_FONT].dwBitmapIndexMin = BITMAP_FONT_BEGIN;
-    m_QuickCache[QUICK_CACHE_FONT].dwBitmapIndexMax = BITMAP_FONT_END;
-    m_QuickCache[QUICK_CACHE_FONT].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_FONT].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_FONT].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_MAINFRAME].dwBitmapIndexMin = BITMAP_INTERFACE_NEW_MAINFRAME_BEGIN;
-    m_QuickCache[QUICK_CACHE_MAINFRAME].dwBitmapIndexMax = BITMAP_INTERFACE_NEW_MAINFRAME_END;
-    m_QuickCache[QUICK_CACHE_MAINFRAME].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_MAINFRAME].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_MAINFRAME].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
-
-    m_QuickCache[QUICK_CACHE_SKILLICON].dwBitmapIndexMin = BITMAP_INTERFACE_NEW_SKILLICON_BEGIN;
-    m_QuickCache[QUICK_CACHE_SKILLICON].dwBitmapIndexMax = BITMAP_INTERFACE_NEW_SKILLICON_END;
-    m_QuickCache[QUICK_CACHE_SKILLICON].dwRange = CACHE_SIZE_PER_TYPE;
-    m_QuickCache[QUICK_CACHE_SKILLICON].ppBitmap = new BITMAP_t*[CACHE_SIZE_PER_TYPE];
-    memset(m_QuickCache[QUICK_CACHE_SKILLICON].ppBitmap, 0, CACHE_SIZE_PER_TYPE * sizeof(BITMAP_t*));
+    m_ppBitmapCache = new BITMAP_t*[CACHE_SIZE];
+    memset(m_ppBitmapCache, 0, CACHE_SIZE * sizeof(BITMAP_t*));
 
     m_pNullBitmap = new BITMAP_t;
     memset(m_pNullBitmap, 0, sizeof(BITMAP_t));
@@ -96,53 +32,42 @@ bool CBitmapCache::Create()
 void CBitmapCache::Release()
 {
     SAFE_DELETE(m_pNullBitmap);
-
-    RemoveAll();
-
-    for (const auto& cache : m_QuickCache)
-    {
-        delete[] cache.ppBitmap;
-    }
-
-    memset(m_QuickCache, 0, sizeof(QUICK_CACHE) * NUMBER_OF_QUICK_CACHE);
+    SAFE_DELETE_ARRAY(m_ppBitmapCache);
 }
 
 void CBitmapCache::Add(GLuint uiBitmapIndex, BITMAP_t* pBitmap)
 {
-    int cacheType = GetCacheType(uiBitmapIndex);
-    if (cacheType >= 0 && cacheType < NUMBER_OF_QUICK_CACHE)
+    if (uiBitmapIndex < CACHE_SIZE)
     {
-        DWORD index = (uiBitmapIndex - m_QuickCache[cacheType].dwBitmapIndexMin) % CACHE_SIZE_PER_TYPE;
-        m_QuickCache[cacheType].ppBitmap[index] = pBitmap ? pBitmap : m_pNullBitmap;
+        m_ppBitmapCache[uiBitmapIndex] = pBitmap ? pBitmap : m_pNullBitmap;
     }
 }
 void CBitmapCache::Remove(GLuint uiBitmapIndex)
 {
-    int cacheType = GetCacheType(uiBitmapIndex);
-    if (cacheType >= 0 && cacheType < NUMBER_OF_QUICK_CACHE)
+    if (uiBitmapIndex < CACHE_SIZE)
     {
-        DWORD index = (uiBitmapIndex - m_QuickCache[cacheType].dwBitmapIndexMin) % CACHE_SIZE_PER_TYPE;
-        m_QuickCache[cacheType].ppBitmap[index] = NULL;
+        m_ppBitmapCache[uiBitmapIndex] = nullptr;
     }
 }
 void CBitmapCache::RemoveAll()
 {
-    for (int i = 0; i < NUMBER_OF_QUICK_CACHE; i++)
+    if (m_ppBitmapCache)
     {
-        if (m_QuickCache[i].ppBitmap)
-            memset(m_QuickCache[i].ppBitmap, 0, m_QuickCache[i].dwRange * sizeof(BITMAP_t*));
+        memset(m_ppBitmapCache, 0, CACHE_SIZE * sizeof(BITMAP_t*));
     }
 }
 
 size_t CBitmapCache::GetCacheSize()
 {
     size_t total = 0;
-    for (int i = 0; i < NUMBER_OF_QUICK_CACHE; i++)
+    if (m_ppBitmapCache)
     {
-        for (DWORD j = 0; j < CACHE_SIZE_PER_TYPE; j++)
+        for (size_t i = 0; i < CACHE_SIZE; i++)
         {
-            if (m_QuickCache[i].ppBitmap[j] && m_QuickCache[i].ppBitmap[j] != m_pNullBitmap)
+            if (m_ppBitmapCache[i] && m_ppBitmapCache[i] != m_pNullBitmap)
+            {
                 total++;
+            }
         }
     }
     return total;
@@ -153,16 +78,17 @@ void CBitmapCache::Update()
     m_ManageTimer.UpdateTime();
     if (m_ManageTimer.IsTime())
     {
-        for (int i = 0; i < NUMBER_OF_QUICK_CACHE; i++)
+        for (size_t i = 0; i < CACHE_SIZE; i++)
         {
-            for (DWORD j = 0; j < CACHE_SIZE_PER_TYPE; j++)
+            if (m_ppBitmapCache[i] && m_ppBitmapCache[i] != m_pNullBitmap)
             {
-                if (m_QuickCache[i].ppBitmap[j] && m_QuickCache[i].ppBitmap[j] != m_pNullBitmap)
+                if (m_ppBitmapCache[i]->dwCallCount > 0)
                 {
-                    if (m_QuickCache[i].ppBitmap[j]->dwCallCount > 0)
-                        m_QuickCache[i].ppBitmap[j]->dwCallCount = 0;
-                    else
-                        m_QuickCache[i].ppBitmap[j] = NULL;
+                    m_ppBitmapCache[i]->dwCallCount = 0;
+                }
+                else
+                {
+                    m_ppBitmapCache[i] = nullptr;
                 }
             }
         }
@@ -171,38 +97,20 @@ void CBitmapCache::Update()
 
 bool CBitmapCache::Find(GLuint uiBitmapIndex, BITMAP_t** ppBitmap)
 {
-    int cacheType = GetCacheType(uiBitmapIndex);
-    if (cacheType >= 0 && cacheType < NUMBER_OF_QUICK_CACHE)
+    if (uiBitmapIndex < CACHE_SIZE && m_ppBitmapCache[uiBitmapIndex])
     {
-        DWORD index = (uiBitmapIndex - m_QuickCache[cacheType].dwBitmapIndexMin) % CACHE_SIZE_PER_TYPE;
-        if (m_QuickCache[cacheType].ppBitmap[index])
+        if (m_ppBitmapCache[uiBitmapIndex] == m_pNullBitmap)
         {
-            if (m_QuickCache[cacheType].ppBitmap[index] == m_pNullBitmap)
-                *ppBitmap = NULL;
-            else
-            {
-                *ppBitmap = m_QuickCache[cacheType].ppBitmap[index];
-                (*ppBitmap)->dwCallCount++;
-            }
-            return true;
+            *ppBitmap = nullptr;
         }
+        else
+        {
+            *ppBitmap = m_ppBitmapCache[uiBitmapIndex];
+            (*ppBitmap)->dwCallCount++;
+        }
+        return true;
     }
     return false;
-}
-
-int CBitmapCache::GetCacheType(GLuint uiBitmapIndex) const
-{
-    if (uiBitmapIndex >= BITMAP_PLAYER_TEXTURE_BEGIN && uiBitmapIndex <= BITMAP_PLAYER_TEXTURE_END)
-        return QUICK_CACHE_PLAYER;
-    else if (uiBitmapIndex >= BITMAP_INTERFACE_TEXTURE_BEGIN && uiBitmapIndex <= BITMAP_INTERFACE_TEXTURE_END)
-        return QUICK_CACHE_INTERFACE;
-    else if (uiBitmapIndex >= BITMAP_EFFECT_TEXTURE_BEGIN && uiBitmapIndex <= BITMAP_EFFECT_TEXTURE_END)
-        return QUICK_CACHE_EFFECT;
-    else if (uiBitmapIndex >= BITMAP_MAPTILE_BEGIN && uiBitmapIndex <= BITMAP_MAPTILE_END)
-        return QUICK_CACHE_MAPTILE;
-    // Add other range checks...
-    else
-        return QUICK_CACHE_MAIN;
 }
 
 CGlobalBitmap::CGlobalBitmap()

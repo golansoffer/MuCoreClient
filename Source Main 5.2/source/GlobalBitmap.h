@@ -33,44 +33,20 @@ private:
 } BITMAP_t;
 #pragma pack(pop)
 
-// This cache uses a hybrid approach for bitmap lookup optimization:
-// 1. Array-based quick cache for frequently accessed bitmap ranges (like tiles, grass, water etc)
-//    - O(1) access time for bitmaps within predefined ranges
-//    - Each range has a preallocated array for direct indexing
-// 2. Map-based cache for other bitmap types
-//    - O(log n) access time using red-black tree
-//    - Separated into different maps by bitmap category to reduce lookup time
+// This cache uses direct array indexing for O(1) bitmap lookup
+// - Single flat array for maximum performance
+// - Direct indexing with no categorization
+// - Preallocated to handle all possible bitmap indices
 class CBitmapCache
 {
     enum
     {
-        QUICK_CACHE_MAIN = 0,
-        QUICK_CACHE_PLAYER,
-        QUICK_CACHE_INTERFACE,
-        QUICK_CACHE_EFFECT,
-        QUICK_CACHE_MAPTILE,
-        QUICK_CACHE_MAPGRASS,
-        QUICK_CACHE_WATER,
-        QUICK_CACHE_CURSOR,
-        QUICK_CACHE_FONT,
-        QUICK_CACHE_MAINFRAME,
-        QUICK_CACHE_SKILLICON,
-
-        NUMBER_OF_QUICK_CACHE = 11,
-        CACHE_SIZE_PER_TYPE = 10000, // Increased cache size per type
+        CACHE_SIZE = 100000  // Large enough to handle all possible bitmap indices
     };
 
-    typedef struct _QUICK_CACHE
-    {
-        DWORD		dwBitmapIndexMin;
-        DWORD		dwBitmapIndexMax;
-        DWORD		dwRange;
-        BITMAP_t** ppBitmap;
-    } QUICK_CACHE;
-
-    QUICK_CACHE			m_QuickCache[NUMBER_OF_QUICK_CACHE];
+    BITMAP_t** m_ppBitmapCache;  // Single flat array for O(1) access
     BITMAP_t* m_pNullBitmap;
-    CTimer2				m_ManageTimer;
+    CTimer2 m_ManageTimer;
 
 public:
     CBitmapCache();
@@ -86,9 +62,6 @@ public:
     size_t GetCacheSize();
     void Update();
     bool Find(GLuint uiBitmapIndex, BITMAP_t** ppBitmap);
-
-private:
-    int GetCacheType(GLuint uiBitmapIndex) const;
 };
 
 class CGlobalBitmap
