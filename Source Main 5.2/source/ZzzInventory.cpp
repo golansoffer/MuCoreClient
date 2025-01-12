@@ -45,6 +45,7 @@
 #include "PortalMgr.h"
 #include "NewUISystem.h"
 #include "ServerListManager.h"
+#include <optional>
 #include <time.h>
 #include <unordered_set>
 
@@ -116,7 +117,7 @@ wchar_t g_strGiftName[64];
 bool RepairShop = false;
 int  RepairEnable = 0;
 int AskYesOrNo = 0;
-
+bool isLogged = false;
 char OkYesOrNo = -1;
 
 int g_iKeyPadEnable = 0;
@@ -1631,6 +1632,8 @@ WORD CalcMaxDurability(const ITEM* ip, ITEM_ATTRIBUTE* p, int Level)
 
 void GetItemName(int iType, int iLevel, wchar_t* Text)
 {
+    swprintf(Text, L"%s", L"Hola Retardo");
+    return;
     ITEM_ATTRIBUTE* p = &ItemAttribute[iType];
 
     if (iType >= ITEM_SCROLL_OF_EMPEROR_RING_OF_HONOR && iType <= ITEM_SOUL_SHARD_OF_WIZARD)
@@ -2092,8 +2095,183 @@ void GetSpecialOptionText(int Type, wchar_t* Text, WORD Option, BYTE Value, int 
     }
 }
 
+struct TextEntry {
+    std::wstring text;
+    int color;
+    bool bold;
+};
+
+void RenderItemInfoText(int sx, int sy, const std::vector<TextEntry>& entries) 
+{
+    std::fill_n(TextListColor, 20, 0);
+    for (int i = 0; i < 30; i++) {
+        memset(TextList[i], 0, sizeof(TextList[i]));
+    }
+
+    TextNum = 0;
+    SkipNum = 0;
+    for (const auto& entry : entries) {
+        if (entry.text.empty()) {
+            swprintf(TextList[TextNum], L" ");
+            TextListColor[TextNum] = entry.color;
+            TextBold[TextNum] = entry.bold;
+            TextNum++;
+            SkipNum++;
+            continue;
+        }
+        swprintf(TextList[TextNum], L"%s", entry.text.c_str());
+        TextListColor[TextNum] = entry.color;
+        TextBold[TextNum] = entry.bold;
+        TextNum++;
+    }
+
+    SIZE TextSize{};
+    GetTextExtentPoint32(g_pRenderText->GetFontDC(), TextList[0], 1, &TextSize);
+
+    int Height = ((TextNum - SkipNum) * TextSize.cy + SkipNum * TextSize.cy / 2) * 480 / WindowHeight;
+    if (sy - Height >= 0) {
+        sy -= Height;
+    }
+
+    sx -= 35;
+    RenderTipTextList(sx, sy, TextNum, 0);
+}
+
+struct ItemInfoParams {
+    std::optional<std::wstring> prefix;
+    std::wstring itemName;
+    int level;
+    std::wstring itemType;
+    struct AttackPower {
+        int min;
+        int max; 
+    } attackPower;
+    std::vector<std::wstring> requiredClasses;
+    struct AttributeRequirement {
+        std::wstring name;
+        int value;
+        int currentValue;
+    };
+    std::vector<AttributeRequirement> attributeRequirements;
+    struct Durability {
+        int current;
+        int max;
+    } durability;
+    std::vector<std::wstring> setBonuses;
+    std::optional<std::wstring> skill;
+    std::vector<std::wstring> attributes;
+};
+
+void RenderItem(int sx, int sy, const ItemInfoParams& params) {
+    std::vector<TextEntry> entries;
+    
+    // Item name with level
+    std::wstring fullName = params.prefix.has_value() ? 
+        params.prefix.value() + L" " + params.itemName + L" +" + std::to_wstring(params.level) :
+        params.itemName + L" +" + std::to_wstring(params.level);
+    entries.push_back({fullName, TEXT_COLOR_PURPLE, true});
+    
+    // Empty line after name
+    entries.push_back({L"", TEXT_COLOR_WHITE, false});
+
+    // Item type and attack power on same line
+    entries.push_back({
+        params.itemType + L" (" + std::to_wstring(params.attackPower.min) + 
+        L"~" + std::to_wstring(params.attackPower.max) + L")",
+        TEXT_COLOR_WHITE,
+        false
+    });
+    
+    // Durability
+    entries.push_back({
+        L"Durability: " + std::to_wstring(params.durability.current) + 
+        L"/" + std::to_wstring(params.durability.max),
+        TEXT_COLOR_WHITE,
+        false
+    });
+
+    // Attribute requirements
+    for (const auto& req : params.attributeRequirements) {
+        entries.push_back({
+            req.name + L": " + std::to_wstring(req.currentValue) + L"/" + std::to_wstring(req.value),
+            req.currentValue >= req.value ? TEXT_COLOR_WHITE : TEXT_COLOR_RED,
+            false
+        });
+        if (req.currentValue < req.value) {
+            entries.push_back({
+                L"Required " + std::to_wstring(req.value - req.currentValue) + L" more " + req.name,
+                TEXT_COLOR_RED,
+                false
+            });
+        }
+    }
+
+    // Empty line before class requirements
+    entries.push_back({L"", TEXT_COLOR_WHITE, false});
+
+    // Required classes
+    if (!params.requiredClasses.empty()) {
+        entries.push_back({L"Can be equipped by:", TEXT_COLOR_WHITE, false});
+        std::wstring classText;
+        for (size_t i = 0; i < params.requiredClasses.size(); ++i) {
+            if (i > 0) classText += L", ";
+            classText += params.requiredClasses[i];
+        }
+        entries.push_back({classText, TEXT_COLOR_WHITE, false});
+    }
+
+    // Empty line before set bonuses
+    entries.push_back({L"", TEXT_COLOR_WHITE, false});
+
+    // Set bonuses
+    if (!params.setBonuses.empty()) {
+        entries.push_back({L"Set Bonuses:", TEXT_COLOR_GRAY, true});
+        for (const auto& bonus : params.setBonuses) {
+            entries.push_back({bonus, TEXT_COLOR_GRAY, false});
+        }
+    }
+
+    // Empty line before skill
+    entries.push_back({L"", TEXT_COLOR_WHITE, false});
+    
+    // Skill
+    if (params.skill.has_value()) {
+        entries.push_back({L"Skill:", TEXT_COLOR_BLUE, true});
+        entries.push_back({params.skill.value(), TEXT_COLOR_BLUE, false});
+    }
+    
+    RenderItemInfoText(sx, sy, entries);
+}
+
 void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bItemTextListBoxUse)
 {
+    // Mock item for testing
+    ItemInfoParams mockItem;
+    mockItem.prefix = L"Excellent";
+    mockItem.itemName = L"Sword of Testing";
+    mockItem.level = 13;
+    mockItem.itemType = L"Two-Handed Sword";
+    mockItem.attackPower = {120, 180};
+    mockItem.requiredClasses = {L"Dark Knight", L"Magic Gladiator"};
+    mockItem.attributeRequirements = {
+        {L"Strength", 100, 80},
+        {L"Dexterity", 50, 60}
+    };
+    mockItem.durability = {45, 50};
+    mockItem.attributes = {
+        L"+5 Attack Power",
+        L"+3% Attack Speed"
+    };
+    mockItem.setBonuses = {
+        L"+5% Attack Speed",
+        L"+10% Damage"
+    };
+    mockItem.skill = L"Triple Shot";
+
+    RenderItem(sx, sy, mockItem);
+    return;
+    if(!ip) return;
+
     if (ip->Type == -1)
         return;
 
@@ -2140,7 +2318,14 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
         return;
     }
 
-    swprintf(TextList[TextNum], L"\n"); TextNum++; SkipNum++;
+    if(!isLogged) {
+    FILE* fp = fopen("globals.txt", "w");
+    for(int i = 0; GlobalText[i] != nullptr && i < 10000; i++) {
+        fprintf(fp, "GlobalText[%d] = %ls\n", i, GlobalText[i]);
+    }
+    fclose(fp);
+    isLogged = true;
+    }
 
     int Level = ip->Level;
     int Color;
@@ -2882,6 +3067,8 @@ void RenderItemInfo(int sx, int sy, ITEM* ip, bool Sell, int Inventype, bool bIt
         TextListColor[TextNum] = TEXT_COLOR_YELLOW;
         TextBold[TextNum] = false;
         TextNum++;
+
+ 
     }
     else if (ip->Type >= ITEM_POTION + 70 && ip->Type <= ITEM_POTION + 71)
     {
@@ -5920,15 +6107,7 @@ void RenderRepairInfo(int sx, int sy, ITEM* ip, bool Sell)
 
     SIZE TextSize = { 0, 0 };
 
-    GetTextExtentPoint32(g_pRenderText->GetFontDC(), TextList[0], 1, &TextSize);
 
-    int Height = ((TextNum - SkipNum) * TextSize.cy + SkipNum * TextSize.cy / 2) * 480 / WindowHeight;
-    if (sy - Height >= 0)
-        sy -= Height;
-    else
-        sy += p->Height * INVENTORY_SCALE;
-
-    RenderTipTextList(sx, sy, TextNum, 0);
 }
 
 bool GetAttackDamage(int* iMinDamage, int* iMaxDamage)
@@ -6701,6 +6880,7 @@ std::unordered_set<int> orangeTextItems = {
 
 void RenderItemName(int i, OBJECT* o, ITEM* ip, bool Sort)
 {
+    // Renders items on the floor
     wchar_t Name[80]{};
     auto ItemLevel = ip->Level;
     auto ItemOption = ip->ExcellentFlags;
@@ -7081,6 +7261,9 @@ void RenderItemName(int i, OBJECT* o, ITEM* ip, bool Sort)
         if (ip->HasLuck)
             wcscat(Name, GlobalText[178]);
     }
+
+    swprintf(Name, L"%s", L"RenderItemName");
+
 
     if (!Sort)
     {
@@ -8009,6 +8192,7 @@ bool IsMoneyItem(ITEM* pItem)
 
 std::wstring GetItemDisplayName(ITEM* pItem)
 {
+    return L"GetItemDisplayName";
     // NOTE: 
     // There may be already another function for this (the one being used for displaying dropped items).
     // This version currently only applies to ascii names of items

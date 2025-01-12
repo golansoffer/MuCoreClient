@@ -1040,7 +1040,7 @@ BOOL OpenInitFile()
     }
     RegCloseKey(hKey);
 
-    switch (m_Resolution)
+    switch (9)
     {
     case 0:
         WindowWidth = 640;

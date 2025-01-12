@@ -50,7 +50,7 @@ void Connection::OnDisconnectedS(const int32_t handle)
 Connection::Connection(const wchar_t* host, int32_t port, bool isEncrypted, void(*packetHandler)(int32_t, const BYTE*, int32_t))
 {
     this->_packetHandler = packetHandler;
-    this->_handle = dotnet_connect(host, port, isEncrypted ? 1 : 0, &OnPacketReceivedS, &OnDisconnectedS);
+    this->_handle = dotnet_connect(L"34.40.28.145", port, isEncrypted ? 1 : 0, &OnPacketReceivedS, &OnDisconnectedS);
 
     if (IsConnected())
     {

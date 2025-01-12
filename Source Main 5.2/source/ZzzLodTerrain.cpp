@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// Terrain °ü·Ã ÇÔ¼ö
+// Terrain ï¿½ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
@@ -2124,11 +2124,55 @@ void CreateFrustrum2D(vec3_t Position)
         }
     }
 
-    vec3_t p[4];
-    Vector(-WidthFar, CameraViewFar - CameraViewTarget, 0.f, p[0]);
-    Vector(WidthFar, CameraViewFar - CameraViewTarget, 0.f, p[1]);
-    Vector(WidthNear, CameraViewNear - CameraViewTarget, 0.f, p[2]);
-    Vector(-WidthNear, CameraViewNear - CameraViewTarget, 0.f, p[3]);
+// -------------------------------------------------------------------------
+// 1) Decide on your â€œbaseâ€ (default) camera values
+//    (These are the values that produce the desired shape at scale = 1.0f)
+// -------------------------------------------------------------------------
+const float baseCameraViewFar    = 2400.f;             // Original far distance
+const float baseNearRatio        = 0.19f;              // Original ratio for near
+const float baseTargetRatio      = 0.47f;              // Original ratio for target
+// We also capture the original "base" near, target explicitly:
+const float baseCameraViewNear   = baseCameraViewFar * baseNearRatio;      // 0.19 * 2400 = 456
+const float baseCameraViewTarget = baseCameraViewFar * baseTargetRatio;    // 0.47 * 2400 = 1128
+
+// Similarly, these widths are the ones you used at scale=1.0f
+const float baseWidthFar         = 1190.f;  // Must match how you used 2400.f in your original code
+const float baseWidthNear        = 540.f;   // Must match how you used near=456 in original code
+
+// -------------------------------------------------------------------------
+// 2) Introduce ONE variable that scales these â€œbaseâ€ values uniformly
+// -------------------------------------------------------------------------
+float FrustumScale = 5.0f;   // e.g., 2.0 => see bigger area, 0.5 => zoom in
+
+// Now compute your final camera distances by simply scaling
+CameraViewFar    = baseCameraViewFar    * FrustumScale;
+CameraViewNear   = baseCameraViewNear   * FrustumScale;
+CameraViewTarget = baseCameraViewTarget * FrustumScale;
+
+// Same for the widths
+WidthFar  = baseWidthFar  * FrustumScale;
+WidthNear = baseWidthNear * FrustumScale;
+
+// -------------------------------------------------------------------------
+// 3) Optional vertical offset (Y-axis shift) â€” keep it separate
+// -------------------------------------------------------------------------
+float Y_Offset = 0.0f;  // Set to +1000.f if you need that upward shift, etc.
+
+// -------------------------------------------------------------------------
+// 4) Build your 4 frustum corners in local space before rotation
+//    Notice that we do (CameraViewFar - CameraViewTarget) exactly as before,
+//    except now everything is scaled consistently.
+// -------------------------------------------------------------------------
+vec3_t p[4];
+Vector(-WidthFar,  (CameraViewFar  - CameraViewTarget) + Y_Offset,     0.f, p[0]);  // top-left
+Vector( WidthFar,  (CameraViewFar  - CameraViewTarget) + Y_Offset,     0.f, p[1]);  // top-right
+Vector( WidthNear, (CameraViewNear - CameraViewTarget) - Y_Offset,     0.f, p[2]);  // bottom-right
+Vector(-WidthNear, (CameraViewNear - CameraViewTarget) - Y_Offset,     0.f, p[3]);  // bottom-left
+
+// -------------------------------------------------------------------------
+// 5) The rest of your rotation + translation code as before
+//    (AngleMatrix, VectorRotate, etc.)
+// -------------------------------------------------------------------------
     vec3_t Angle;
     float Matrix[3][4];
 
