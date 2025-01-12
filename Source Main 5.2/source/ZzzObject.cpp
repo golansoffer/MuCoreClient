@@ -233,6 +233,12 @@ void BodyLight(OBJECT* o, BMD* b)
 
 extern float BoneScale;
 
+// Calculates the rendering state and animation for an object
+// - Handles alpha fading in Chaos Castle
+// - Applies body lighting and scaling
+// - Processes bone animations and transformations 
+// - Handles edge rendering for selected objects
+// - Returns false if object is fully transparent, true otherwise
 bool Calc_RenderObject(OBJECT* o, bool Translate, int Select, int ExtraMon)
 {
     if (gMapManager.InChaosCastle() == true && Hero->Object.m_bActionStart == true)
