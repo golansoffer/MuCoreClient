@@ -1689,56 +1689,64 @@ extern int SelectWall;
 
 bool RenderTerrainTile(float xf, float yf, int xi, int yi, float lodf, int lodi, bool Flag)
 {
+    // Calculate indices once
     TerrainIndex1 = TERRAIN_INDEX(xi, yi);
-    if ((TerrainWall[TerrainIndex1] & TW_NOGROUND) == TW_NOGROUND && !Flag) return false;
+    
+    // Early exit if no ground and not in flag mode
+    if (!Flag && (TerrainWall[TerrainIndex1] & TW_NOGROUND) == TW_NOGROUND)
+        return false;
 
+    // Calculate remaining indices
     TerrainIndex2 = TERRAIN_INDEX(xi + lodi, yi);
     TerrainIndex3 = TERRAIN_INDEX(xi + lodi, yi + lodi);
     TerrainIndex4 = TERRAIN_INDEX(xi, yi + lodi);
 
-    float sx = xf * TERRAIN_SCALE;
-    float sy = yf * TERRAIN_SCALE;
+    // Pre-calculate scaled positions
+    const float sx = xf * TERRAIN_SCALE;
+    const float sy = yf * TERRAIN_SCALE;
+    const float sxPlus = sx + TERRAIN_SCALE;
+    const float syPlus = sy + TERRAIN_SCALE;
 
+    // Calculate vertex positions
     Vector(sx, sy, BackTerrainHeight[TerrainIndex1], TerrainVertex[0]);
-    Vector(sx + TERRAIN_SCALE, sy, BackTerrainHeight[TerrainIndex2], TerrainVertex[1]);
-    Vector(sx + TERRAIN_SCALE, sy + TERRAIN_SCALE, BackTerrainHeight[TerrainIndex3], TerrainVertex[2]);
-    Vector(sx, sy + TERRAIN_SCALE, BackTerrainHeight[TerrainIndex4], TerrainVertex[3]);
+    Vector(sxPlus, sy, BackTerrainHeight[TerrainIndex2], TerrainVertex[1]);
+    Vector(sxPlus, syPlus, BackTerrainHeight[TerrainIndex3], TerrainVertex[2]);
+    Vector(sx, syPlus, BackTerrainHeight[TerrainIndex4], TerrainVertex[3]);
 
-    if ((TerrainWall[TerrainIndex1] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[0][2] = g_fSpecialHeight;
-    if ((TerrainWall[TerrainIndex2] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[1][2] = g_fSpecialHeight;
-    if ((TerrainWall[TerrainIndex3] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[2][2] = g_fSpecialHeight;
-    if ((TerrainWall[TerrainIndex4] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[3][2] = g_fSpecialHeight;
+    // Apply height adjustments if needed
+    const float specialHeight = g_fSpecialHeight;
+    if ((TerrainWall[TerrainIndex1] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[0][2] = specialHeight;
+    if ((TerrainWall[TerrainIndex2] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[1][2] = specialHeight;
+    if ((TerrainWall[TerrainIndex3] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[2][2] = specialHeight;
+    if ((TerrainWall[TerrainIndex4] & TW_HEIGHT) == TW_HEIGHT) TerrainVertex[3][2] = specialHeight;
 
     if (!Flag)
     {
         RenderTerrainFace(xf, yf, xi, yi, lodf);
 #ifdef SHOW_PATH_INFO
 #ifdef CSK_DEBUG_MAP_PATHFINDING
-        if (g_bShowPath == true)
-#endif // CSK_DEBUG_MAP_PATHFINDING
+        if (g_bShowPath)
+#endif
         {
-            if (2 <= path->GetClosedStatus(TerrainIndex1))
+            const int pathStatus = path->GetClosedStatus(TerrainIndex1);
+            if (pathStatus >= 2)
             {
                 EnableAlphaTest();
                 DisableTexture();
                 glBegin(GL_TRIANGLE_FAN);
-                if (4 <= path->GetClosedStatus(TerrainIndex1))
-                {
-                    glColor4f(0.3f, 0.3f, 1.0f, 0.5f);
-                }
-                else
-                {
-                    glColor4f(1.0f, 1.0f, 1.0f, 0.3f);
-                }
+                glColor4f(pathStatus >= 4 ? 0.3f : 1.0f, 
+                         pathStatus >= 4 ? 0.3f : 1.0f,
+                         pathStatus >= 4 ? 1.0f : 1.0f,
+                         pathStatus >= 4 ? 0.5f : 0.3f);
+                
                 for (int i = 0; i < 4; i++)
-                {
                     glVertex3fv(TerrainVertex[i]);
-                }
+                
                 glEnd();
                 DisableAlphaBlend();
             }
         }
-#endif // SHOW_PATH_INFO
+#endif
     }
     else
     {
@@ -1749,59 +1757,31 @@ bool RenderTerrainTile(float xf, float yf, int xi, int yi, float lodf, int lodi,
             glColor3f(0.5f, 0.5f, 0.5f);
             glBegin(GL_LINE_STRIP);
             for (int i = 0; i < 4; i++)
-            {
                 glVertex3fv(TerrainVertex[i]);
-            }
             glEnd();
             DisableAlphaBlend();
         }
-#endif// _DEBUG
+#endif
 
         vec3_t Normal;
         FaceNormalize(TerrainVertex[0], TerrainVertex[1], TerrainVertex[2], Normal);
-        bool Success = CollisionDetectLineToFace(MousePosition, MouseTarget, 3, TerrainVertex[0], TerrainVertex[1], TerrainVertex[2], TerrainVertex[3], Normal);
-        if (Success == false)
+        bool Success = CollisionDetectLineToFace(MousePosition, MouseTarget, 3, 
+            TerrainVertex[0], TerrainVertex[1], TerrainVertex[2], TerrainVertex[3], Normal);
+            
+        if (!Success)
         {
             FaceNormalize(TerrainVertex[0], TerrainVertex[2], TerrainVertex[3], Normal);
-            Success = CollisionDetectLineToFace(MousePosition, MouseTarget, 3, TerrainVertex[0], TerrainVertex[2], TerrainVertex[3], TerrainVertex[1], Normal);
+            Success = CollisionDetectLineToFace(MousePosition, MouseTarget, 3,
+                TerrainVertex[0], TerrainVertex[2], TerrainVertex[3], TerrainVertex[1], Normal);
         }
-        if (Success == true)
+        
+        if (Success)
         {
             SelectFlag = true;
             SelectXF = xf;
             SelectYF = yf;
         }
-#ifdef CSK_DEBUG_MAP_ATTRIBUTE
-        if (EditFlag == EDIT_WALL &&
-            ((SelectWall == 0 && (TerrainWall[TerrainIndex1] & TW_NOMOVE) == TW_NOMOVE)
-                || (SelectWall == 2 && (TerrainWall[TerrainIndex1] & TW_SAFEZONE) == TW_SAFEZONE)
-                || (SelectWall == 6 && (TerrainWall[TerrainIndex1] & TW_CAMERA_UP) == TW_CAMERA_UP)
-                || (SelectWall == 7 && (TerrainWall[TerrainIndex1] & TW_NOATTACKZONE) == TW_NOATTACKZONE)
-                || (SelectWall == 8 && (TerrainWall[TerrainIndex1] & TW_ATT1) == TW_ATT1)
-                || (SelectWall == 9 && (TerrainWall[TerrainIndex1] & TW_ATT2) == TW_ATT2)
-                || (SelectWall == 10 && (TerrainWall[TerrainIndex1] & TW_ATT3) == TW_ATT3)
-                || (SelectWall == 11 && (TerrainWall[TerrainIndex1] & TW_ATT4) == TW_ATT4)
-                || (SelectWall == 12 && (TerrainWall[TerrainIndex1] & TW_ATT5) == TW_ATT5)
-                || (SelectWall == 13 && (TerrainWall[TerrainIndex1] & TW_ATT6) == TW_ATT6)
-                || (SelectWall == 14 && (TerrainWall[TerrainIndex1] & TW_ATT7) == TW_ATT7)
-                ))
-        {
-            DisableDepthTest();
-            EnableAlphaTest();
-            DisableTexture();
-
-            glBegin(GL_TRIANGLE_FAN);
-            glColor4f(1.f, 0.5f, 0.5f, 0.3f);
-            for (int i = 0; i < 4; i++)
-            {
-                glVertex3fv(TerrainVertex[i]);
-            }
-            glEnd();
-
-            DisableAlphaBlend();
-        }
-#endif // CSK_DEBUG_MAP_ATTRIBUTE
-
+        
         return Success;
     }
     return false;
@@ -2124,55 +2104,11 @@ void CreateFrustrum2D(vec3_t Position)
         }
     }
 
-// -------------------------------------------------------------------------
-// 1) Decide on your “base” (default) camera values
-//    (These are the values that produce the desired shape at scale = 1.0f)
-// -------------------------------------------------------------------------
-const float baseCameraViewFar    = 2400.f;             // Original far distance
-const float baseNearRatio        = 0.19f;              // Original ratio for near
-const float baseTargetRatio      = 0.47f;              // Original ratio for target
-// We also capture the original "base" near, target explicitly:
-const float baseCameraViewNear   = baseCameraViewFar * baseNearRatio;      // 0.19 * 2400 = 456
-const float baseCameraViewTarget = baseCameraViewFar * baseTargetRatio;    // 0.47 * 2400 = 1128
-
-// Similarly, these widths are the ones you used at scale=1.0f
-const float baseWidthFar         = 1190.f;  // Must match how you used 2400.f in your original code
-const float baseWidthNear        = 540.f;   // Must match how you used near=456 in original code
-
-// -------------------------------------------------------------------------
-// 2) Introduce ONE variable that scales these “base” values uniformly
-// -------------------------------------------------------------------------
-float FrustumScale = 5.0f;   // e.g., 2.0 => see bigger area, 0.5 => zoom in
-
-// Now compute your final camera distances by simply scaling
-CameraViewFar    = baseCameraViewFar    * FrustumScale;
-CameraViewNear   = baseCameraViewNear   * FrustumScale;
-CameraViewTarget = baseCameraViewTarget * FrustumScale;
-
-// Same for the widths
-WidthFar  = baseWidthFar  * FrustumScale;
-WidthNear = baseWidthNear * FrustumScale;
-
-// -------------------------------------------------------------------------
-// 3) Optional vertical offset (Y-axis shift) — keep it separate
-// -------------------------------------------------------------------------
-float Y_Offset = 0.0f;  // Set to +1000.f if you need that upward shift, etc.
-
-// -------------------------------------------------------------------------
-// 4) Build your 4 frustum corners in local space before rotation
-//    Notice that we do (CameraViewFar - CameraViewTarget) exactly as before,
-//    except now everything is scaled consistently.
-// -------------------------------------------------------------------------
-vec3_t p[4];
-Vector(-WidthFar,  (CameraViewFar  - CameraViewTarget) + Y_Offset,     0.f, p[0]);  // top-left
-Vector( WidthFar,  (CameraViewFar  - CameraViewTarget) + Y_Offset,     0.f, p[1]);  // top-right
-Vector( WidthNear, (CameraViewNear - CameraViewTarget) - Y_Offset,     0.f, p[2]);  // bottom-right
-Vector(-WidthNear, (CameraViewNear - CameraViewTarget) - Y_Offset,     0.f, p[3]);  // bottom-left
-
-// -------------------------------------------------------------------------
-// 5) The rest of your rotation + translation code as before
-//    (AngleMatrix, VectorRotate, etc.)
-// -------------------------------------------------------------------------
+    vec3_t p[4];
+    Vector(-WidthFar, CameraViewFar - CameraViewTarget, 0.f, p[0]);
+    Vector(WidthFar, CameraViewFar - CameraViewTarget, 0.f, p[1]);
+    Vector(WidthNear, CameraViewNear - CameraViewTarget, 0.f, p[2]);
+    Vector(-WidthNear, CameraViewNear - CameraViewTarget, 0.f, p[3]);
     vec3_t Angle;
     float Matrix[3][4];
 
@@ -2209,7 +2145,7 @@ bool TestFrustrum2D(float x, float y, float Range)
     {
         float d = (FrustrumX[i] - x) * (FrustrumY[j] - y) -
             (FrustrumX[j] - x) * (FrustrumY[i] - y);
-        if (d <= Range - 150.f)
+        if (d <= Range)
         {
             return false;
         }
@@ -2542,57 +2478,77 @@ void InitTerrainRay(int HeroX, int HeroY)
 
 void RenderTerrainBlock(float xf, float yf, int xi, int yi, bool EditFlag)
 {
-    //int x = ((xi/4)&63);
-    //int y = ((yi/4)&63);
-    //int lodi = LodBuffer[y*64+x];
-    int lodi = 1;
-    auto lodf = (float)lodi;
+    // Use constant LOD for now
+    const int lodi = 1;
+    const float lodf = 1.0f;
+    
+    // Pre-calculate frustum test position
+    const float centerOffset = 0.5f;
+    
+    // Cache the initial xf value
+    const float initial_xf = xf;
+    
+    // Process 4x4 block of terrain tiles
     for (int i = 0; i < 4; i += lodi)
     {
-        float temp = xf;
+        xf = initial_xf; // Reset xf for each row
+        
         for (int j = 0; j < 4; j += lodi)
         {
-            if (TestFrustrum2D(xf + 0.5f, yf + 0.5f, 0.f) || CameraTopViewEnable)
+            // Single frustum test per tile
+            if (CameraTopViewEnable || TestFrustrum2D(xf + centerOffset, yf + centerOffset, 0.0f))
             {
                 RenderTerrainTile(xf, yf, xi + j, yi + i, lodf, lodi, EditFlag);
             }
             xf += lodf;
         }
-        xf = temp;
         yf += lodf;
     }
 }
 
 void RenderTerrainFrustrum(bool EditFlag)
 {
-    int     xi;
-    int     yi = FrustrumBoundMinY;
-    float   xf;
-    auto yf = (float)yi;
+    // Pre-calculate constants
+    const float frustumRangeSquared = g_fFrustumRange * g_fFrustumRange;
+    const int blockSize = 4;
+    const float halfBlockSize = 2.0f;
+    
+    // Calculate bounds once
+    const int minY = FrustrumBoundMinY;
+    const int maxY = FrustrumBoundMaxY;
+    const int minX = FrustrumBoundMinX;
+    const int maxX = FrustrumBoundMaxX;
 
-    for (; yi <= FrustrumBoundMaxY; yi += 4, yf += 4.f)
+    float yf = (float)minY;
+    for (int yi = minY; yi <= maxY; yi += blockSize, yf += blockSize)
     {
-        xi = FrustrumBoundMinX;
-        xf = (float)xi;
-        for (; xi <= FrustrumBoundMaxX; xi += 4, xf += 4.f)
+        float xf = (float)minX;
+        for (int xi = minX; xi <= maxX; xi += blockSize, xf += blockSize)
         {
-            if (TestFrustrum2D(xf + 2.f, yf + 2.f, g_fFrustumRange) || CameraTopViewEnable)
-            {
+            // Quick distance check for login scene
 #ifdef PJH_NEW_SERVER_SELECT_MAP
-                if (gMapManager.WorldActive == WD_73NEW_LOGIN_SCENE)
+            if (gMapManager.WorldActive == WD_73NEW_LOGIN_SCENE)
 #else
-                if (World == WD_77NEW_LOGIN_SCENE)
-#endif //PJH_NEW_SERVER_SELECT_MAP
-                {
-                    float fDistance_x = CameraPosition[0] - xf / 0.01f;
-                    float fDistance_y = CameraPosition[1] - yf / 0.01f;
-                    float fDistance = sqrtf(fDistance_x * fDistance_x + fDistance_y * fDistance_y);
-
-                    if (fDistance > 5200.f)
-                        continue;
-                }
-                RenderTerrainBlock(xf, yf, xi, yi, EditFlag);
+            if (World == WD_77NEW_LOGIN_SCENE)
+#endif
+            {
+                const float dx = CameraPosition[0] - xf * 100.0f;
+                const float dy = CameraPosition[1] - yf * 100.0f;
+                if ((dx * dx + dy * dy) > 27040000.0f) // 5200^2
+                    continue;
             }
+
+            // Frustum test with early exit
+            if (!CameraTopViewEnable)
+            {
+                const float centerX = xf + halfBlockSize;
+                const float centerY = yf + halfBlockSize;
+                if (!TestFrustrum2D(centerX, centerY, g_fFrustumRange))
+                    continue;
+            }
+
+            // Render the block
+            RenderTerrainBlock(xf, yf, xi, yi, EditFlag);
         }
     }
 }
